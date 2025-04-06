@@ -65,18 +65,19 @@ func (model cliModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (model cliModel) View() string {
-	view := "\nPress q to quit.\n"
-	view += "Press r to drop output.\n\n"
+	view := fmt.Sprintf("%v to quit.\n", applyCommandStyle("Press q"))
+	view += fmt.Sprintf("%v to drop output.\n\n", applyCommandStyle("Press r"))
 
 	view += "Makefile's targets:\n"
 
 	for i, choice := range model.choices {
-		cursor := " " // no cursor
 		if model.numLine == i {
-			cursor = ">"
+			view += fmt.Sprintf("> %s", applyChosenTargetStyle(choice))
+		} else {
+			view += fmt.Sprintf("  %s", applyTargetStyle(choice))
 		}
 
-		view += fmt.Sprintf("%s [%v] %s\n", cursor, i+1, choice)
+		view += "\n"
 	}
 
 	if model.output != "" {
