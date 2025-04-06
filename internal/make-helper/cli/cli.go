@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
 	parser "github.com/holeyko/make-helper/internal/make-helper/makefile/parser"
@@ -14,6 +15,7 @@ type cliModel struct {
 	choices []string
 	numLine int
 	output  string
+	buffer  string
 }
 
 type MakefileTarget struct {
@@ -94,22 +96,25 @@ func (model cliModel) getSelectedTarget() string {
 }
 
 func handleKeyPress(model cliModel, message tea.KeyMsg) (cliModel, tea.Cmd) {
+	clearBuffer := true
+	var cmd tea.Cmd
+
 	switch message.String() {
 
 	// Quit from CLI
 	case "ctrl+c", "q":
-		return model, tea.Quit
+		cmd = tea.Quit
 
 	// Move cursor up
 	case "up", "k":
 		if model.numLine > 0 {
-			model.numLine--
+			model.numLine = max(0, model.numLine-countFromBuffer(model))
 		}
 
 	// Move cursor down
 	case "down", "j":
 		if model.numLine < len(model.choices)-1 {
-			model.numLine++
+			model.numLine = min(len(model.choices)-1, model.numLine+countFromBuffer(model))
 		}
 
 	case "r":
@@ -121,14 +126,18 @@ func handleKeyPress(model cliModel, message tea.KeyMsg) (cliModel, tea.Cmd) {
 		output, _ := executeMakeTarget(target)
 
 		text := output
-		// if err != nil {
-		// 	text = err.Error()
-		// }
-
 		model.output = text
+
+	default:
+		model.buffer += message.String()
+		clearBuffer = false
 	}
 
-	return model, nil
+	if clearBuffer {
+		model.buffer = ""
+	}
+
+	return model, cmd
 }
 
 func initCliModel() *cliModel {
@@ -166,4 +175,13 @@ func executeMakeTarget(target string) (string, error) {
 	output, err := cmd.CombinedOutput()
 
 	return string(output), err
+}
+
+func countFromBuffer(model cliModel) int {
+	n, err := strconv.Atoi(model.buffer)
+	if err != nil {
+		n = 1
+	}
+
+	return n
 }
