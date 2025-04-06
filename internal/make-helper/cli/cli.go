@@ -81,7 +81,7 @@ func (model cliModel) View() string {
 	}
 
 	if model.output != "" {
-		view += "\nOutput target:\n"
+		view += "\n"
 		view += model.output
 		view += "\n"
 	}
