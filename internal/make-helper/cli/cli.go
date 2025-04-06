@@ -7,7 +7,7 @@ import (
 	"os/exec"
 
 	tea "github.com/charmbracelet/bubbletea"
-	parser "github.com/mrtazz/checkmake/parser"
+	parser "github.com/holeyko/make-helper/internal/make-helper/makefile/parser"
 )
 
 type cliModel struct {
@@ -65,7 +65,10 @@ func (model cliModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (model cliModel) View() string {
-	view := "Makefile's targets:\n"
+	view := "\nPress q to quit.\n"
+	view += "Press r to drop output.\n\n"
+
+	view += "Makefile's targets:\n"
 
 	for i, choice := range model.choices {
 		cursor := " " // no cursor
@@ -81,8 +84,6 @@ func (model cliModel) View() string {
 		view += model.output
 		view += "\n"
 	}
-
-	view += "\nPress q to quit.\n"
 
 	return view
 }
@@ -109,6 +110,9 @@ func handleKeyPress(model cliModel, message tea.KeyMsg) (cliModel, tea.Cmd) {
 		if model.numLine < len(model.choices)-1 {
 			model.numLine++
 		}
+
+	case "r":
+		model.output = ""
 
 	// Execute Makefile's target
 	case "enter":
