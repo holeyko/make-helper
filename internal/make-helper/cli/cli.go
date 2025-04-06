@@ -6,9 +6,18 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	parser "github.com/holeyko/make-helper/internal/make-helper/makefile/parser"
+)
+
+type Action string
+
+const (
+	typing         = Action("")
+	typeSearchText = Action("typeSearchText")
+	searchText     = Action("searchText")
 )
 
 type cliModel struct {
@@ -16,6 +25,7 @@ type cliModel struct {
 	numLine int
 	output  string
 	buffer  string
+	action  Action
 }
 
 type MakefileTarget struct {
@@ -70,6 +80,10 @@ func (model cliModel) View() string {
 	view := fmt.Sprintf("%v to quit.\n", applyCommandStyle("Press q"))
 	view += fmt.Sprintf("%v to drop output.\n\n", applyCommandStyle("Press r"))
 
+	if model.action == typeSearchText || model.action == searchText {
+		view += fmt.Sprintf("%s %s\n\n", applySearchTextTitleStyle("Search text:"), model.buffer)
+	}
+
 	view += "Makefile's targets:\n"
 
 	for i, choice := range model.choices {
@@ -96,8 +110,31 @@ func (model cliModel) getSelectedTarget() string {
 }
 
 func handleKeyPress(model cliModel, message tea.KeyMsg) (cliModel, tea.Cmd) {
-	clearBuffer := true
 	var cmd tea.Cmd
+
+	switch message.String() {
+
+	// Go to default action
+	case "esc":
+		model.action = typing
+		model.buffer = ""
+
+	default:
+		if model.action == typing {
+			model, cmd = handleTypingAction(model, message)
+		} else if model.action == typeSearchText {
+			model, cmd = handleTypeSearchingText(model, message)
+		} else if model.action == searchText {
+			model, cmd = handleSearchText(model, message)
+		}
+	}
+
+	return model, cmd
+}
+
+func handleTypingAction(model cliModel, message tea.KeyMsg) (cliModel, tea.Cmd) {
+	var cmd tea.Cmd
+	clearBuffer := true
 
 	switch message.String() {
 
@@ -128,6 +165,11 @@ func handleKeyPress(model cliModel, message tea.KeyMsg) (cliModel, tea.Cmd) {
 		text := output
 		model.output = text
 
+	// Searching
+	case "/":
+		model.action = typeSearchText
+		model.buffer = ""
+
 	default:
 		model.buffer += message.String()
 		clearBuffer = false
@@ -140,6 +182,79 @@ func handleKeyPress(model cliModel, message tea.KeyMsg) (cliModel, tea.Cmd) {
 	return model, cmd
 }
 
+func handleTypeSearchingText(model cliModel, message tea.KeyMsg) (cliModel, tea.Cmd) {
+	var cmd tea.Cmd
+
+	switch message.String() {
+	case "enter":
+		model.action = searchText
+		model.numLine = findNextMatchedLine(model)
+
+	case "backspace":
+		if model.buffer != "" {
+			model.buffer = model.buffer[:len(model.buffer)-1]
+		}
+
+	default:
+		model.buffer += message.String()
+	}
+
+	return model, cmd
+}
+
+func handleSearchText(model cliModel, message tea.KeyMsg) (cliModel, tea.Cmd) {
+	var cmd tea.Cmd
+
+	switch message.String() {
+	case "n":
+		model.numLine = findNextMatchedLine(model)
+
+	case "N":
+		model.numLine = findPreviousMatchedLine(model)
+
+	case "/":
+		model.action = typeSearchText
+		model.buffer = ""
+
+	case "enter":
+		target := model.getSelectedTarget()
+		output, _ := executeMakeTarget(target)
+
+		text := output
+		model.output = text
+	}
+
+	return model, cmd
+}
+
+func findNextMatchedLine(model cliModel) int {
+	for i := model.numLine + 1; i < model.numLine+len(model.choices); i++ {
+		idx := i % len(model.choices)
+		choice := model.choices[idx]
+		if strings.Contains(choice, model.buffer) {
+			return idx
+		}
+	}
+
+	return model.numLine
+}
+
+func findPreviousMatchedLine(model cliModel) int {
+	for i := model.numLine - 1; i > model.numLine-len(model.choices); i-- {
+		idx := i
+		if idx < 0 {
+			idx += len(model.choices)
+		}
+
+		choice := model.choices[idx]
+		if strings.Contains(choice, model.buffer) {
+			return idx
+		}
+	}
+
+	return model.numLine
+}
+
 func initCliModel() *cliModel {
 	targets := parseMakefileTargets()
 	targetsNames := make([]string, len(targets))
@@ -149,6 +264,7 @@ func initCliModel() *cliModel {
 
 	return &cliModel{
 		choices: targetsNames,
+		action:  typing,
 	}
 }
 

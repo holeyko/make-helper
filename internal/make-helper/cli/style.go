@@ -12,6 +12,9 @@ var (
 
 	commandStyle = lipgloss.NewStyle().
 			Bold(true)
+
+	searchTextTitleStyle = lipgloss.NewStyle().
+				Bold(true)
 )
 
 func applyTargetStyle(target string) string {
@@ -24,4 +27,8 @@ func applyChosenTargetStyle(chosenTarget string) string {
 
 func applyCommandStyle(cmd string) string {
 	return commandStyle.Render(cmd)
+}
+
+func applySearchTextTitleStyle(title string) string {
+	return searchTextTitleStyle.Render(title)
 }
