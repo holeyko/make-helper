@@ -1,2 +1,5 @@
 ### VS Code ###
 .vscode/
+
+### Artifacts ###
+build/
